@@ -39,7 +39,9 @@ impl Service for FlockClient {
 }
 
 impl FlockService for FlockClient {
-    fn isLoggedIn(&self, token: String) -> Box<Future<Item = bool, Error = io::Error>> {
+    type F = <FlockClient as Service>::Future;
+
+    fn isLoggedIn(&self, token: String) -> Self::F {
         self.call(Flock_isLoggedIn_Args{token: token})
     }
 }

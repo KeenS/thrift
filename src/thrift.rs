@@ -15,7 +15,8 @@ use futures::Future;
 
 
 pub trait FlockService: Send {
-    fn isLoggedIn(&self, token: String) -> Box<Future<Item = bool, Error = io::Error>>;
+    type F: Future<Item = bool, Error = io::Error>;
+    fn isLoggedIn(&self, token: String) -> Self::F;
 }
 
 

@@ -21,7 +21,7 @@ impl <T>Service for FlockServer<T>
     type Request = Flock_isLoggedIn_Args;
     type Response = bool;
     type Error = io::Error;
-    type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
+    type Future = T::F;
 
 
     fn call(&self, req: Self::Request) -> Self::Future {

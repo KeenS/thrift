@@ -5,7 +5,7 @@ extern crate tokio_proto as proto;
 extern crate thrift;
 
 use std::io;
-use futures::{Future,done};
+use futures::{Future, done, Done};
 use tokio::reactor::Core;
 use tokio::net::TcpStream;
 use thrift::thrift::*;
@@ -16,12 +16,13 @@ use thrift::service::serve;
 struct FlockServer;
 
 impl FlockService for FlockServer {
-    fn isLoggedIn(&self, token: String) -> Box<Future<Item = bool, Error = io::Error>> {
+    type F = Done<bool, io::Error>;
+    fn isLoggedIn(&self, token: String) -> Self::F {
         println!("GOT: {:?}", token);
         if &token == "123" {
-            Box::new(done(Ok(true)))
+            done(Ok(true))
         } else {
-            Box::new(done(Ok(false)))
+            done(Ok(false))
         }
     }
 }
