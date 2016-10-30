@@ -1,4 +1,3 @@
-use std::fmt;
 use std::io::{self, Cursor};
 use tokio_core::io::Io;
 use tokio_core::easy::{Parse, Serialize, EasyBuf, EasyFramed};
@@ -29,13 +28,11 @@ impl <T>TTransport<T> {
 //impl <D>Parse for TTransport<D>
 //    where D: Deserializer + ThriftDeserializer + From<ReadTransport>,
 impl <T>Parse for TTransport<T>
-    where T: De + fmt::Debug
-
+    where T: De
 {
     type Out = T;
 
     fn parse(&mut self, buf: &mut EasyBuf) -> Poll<Self::Out, io::Error> {
-        println!("parsig {:?}", buf.as_ref());
         let cur = Cursor::new(buf);
         let mut protocol = BinaryProtocol::from(cur);
         let ret = match De::deserialize(&mut protocol) {
@@ -55,12 +52,11 @@ impl <T>Parse for TTransport<T>
 //impl <S>Serialize for TTransport<S>
 //    where S: Serializer + ThriftSerializer + From<WriteTransport>,
 impl <T>Serialize for TTransport<T>
-    where T: Se + fmt::Debug
+    where T: Se
 {
     type In = T;
 
     fn serialize(&mut self, frame: Self::In, buf: &mut Vec<u8>) {
-        println!("serializing {:?}", frame);
         let mut protocol = BinaryProtocol::from(buf);
         let _ = frame.serialize(&mut protocol);
     }
@@ -71,8 +67,8 @@ pub type FramedThriftTransport<T, D, S> = EasyFramed<T, TTransport<D>, TTranspor
 
 pub fn new_thrift_transport<T, D, S>(inner: T) -> FramedThriftTransport<T, D, S>
     where T: Io,
-          D: De + fmt::Debug,
-          S: Se + fmt::Debug,
+          D: De,
+          S: Se,
           // D: Deserializer + ThriftDeserializer + Parse,
           // S: Serializer + ThriftSerializer + Serialize,
 {
