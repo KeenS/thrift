@@ -1,21 +1,20 @@
 use futures::{Async, Future};
 use std::io;
 use tokio_service::Service;
-use tokio_proto::{self};
+use tokio_proto::easy;
 use tokio_core::reactor::Handle;
 use tokio_core::net::TcpStream;
-use framed_transport::new_thrift_transport;
+use thrust_tokio::framed_transport::new_thrift_transport;
 use thrift::*;
 
-/// And the client handle.
 pub struct FlockClient {
-    inner: tokio_proto::easy::EasyClient<Flock_isLoggedIn_Args, bool>,
+    inner: easy::EasyClient<Flock_isLoggedIn_Args, bool>,
 }
 
 impl FlockClient {
-    pub fn new(handle:&Handle, stream: TcpStream) -> FlockClient {
+    pub fn new(handle:&Handle, stream: TcpStream) -> Self {
         let transport = new_thrift_transport(stream);
-        let easy_client = tokio_proto::easy::pipeline::connect(transport, &handle);
+        let easy_client = easy::pipeline::connect(transport, &handle);
 
         FlockClient { inner: easy_client }
     }
@@ -28,7 +27,6 @@ impl Service for FlockClient {
     type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
 
     fn call(&self, arg: Self::Request) -> Self::Future {
-        // Make sure that the request does not include any new lines
         self.inner.call(arg)
             .boxed()
     }

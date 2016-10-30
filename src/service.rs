@@ -1,11 +1,11 @@
 use tokio_proto::server;
 use tokio_proto::easy::pipeline;
-use tokio_service::{Service, NewService, simple_service};
+use tokio_service::Service;
 use tokio_core::reactor::Handle;
-use futures::{Async, Future};
+use futures::Async;
 use std::io;
 use std::net::SocketAddr;
-use framed_transport::new_thrift_transport;
+use thrust_tokio::framed_transport::new_thrift_transport;
 use thrift::*;
 
 
@@ -14,8 +14,6 @@ struct FlockServer<T>{
 }
 
 impl <T>Service for FlockServer<T>
-    // where T: Service<Request = Flock_isLoggedIn_Args, Response = bool, Error = io::Error>,
-    //       T::Future: 'static,
     where T: FlockService
 {
     type Request = Flock_isLoggedIn_Args;
@@ -33,15 +31,11 @@ impl <T>Service for FlockServer<T>
     }
 }
 
-/// Serve a service up. Secret sauce here is 'NewService', a helper that must be able to create a
-/// new 'Service' for each connection that we receive.
 pub fn serve<T>(handle: Handle,  addr: SocketAddr, flock_service: T)
                 -> io::Result<()>
     where T: FlockService+Clone+'static
 {
     try!(server::listen(&handle, addr, move |stream| {
-        // Initialize the pipeline dispatch with the service and the line
-        // transport
         let service = FlockServer { inner: flock_service.clone() };
         Ok(pipeline::EasyServer::new(service,
                                   new_thrift_transport::<_, Flock_isLoggedIn_Args, bool>(stream)))

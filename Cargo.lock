@@ -6,6 +6,7 @@ dependencies = [
  "bytes 0.4.0-dev",
  "futures 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "thrust 0.1.0",
+ "thrust-tokio 0.1.0",
  "tokio-core 0.1.0",
  "tokio-proto 0.1.0",
  "tokio-service 0.1.0",
@@ -316,6 +317,17 @@ dependencies = [
  "tangle 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thrust_codegen 0.1.0",
  "thrust_parser 0.1.0",
+]
+
+[[package]]
+name = "thrust-tokio"
+version = "0.1.0"
+dependencies = [
+ "futures 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "thrust 0.1.0",
+ "tokio-core 0.1.0",
+ "tokio-proto 0.1.0",
+ "tokio-service 0.1.0",
 ]
 
 [[package]]
