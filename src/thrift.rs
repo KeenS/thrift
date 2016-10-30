@@ -19,6 +19,7 @@ pub trait FlockService: Send {
 }
 
 
+#[derive(Debug)]
 pub struct Flock_isLoggedIn_Args {
     pub token: String,
 }

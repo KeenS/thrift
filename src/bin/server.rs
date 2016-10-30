@@ -8,7 +8,7 @@ use tokio::reactor::Core;
 use tokio::net::TcpStream;
 use service::Service;
 use thrift::thrift::Flock_isLoggedIn_Args;
-use thrift::framed_transport::{new_thrift_transport, TTransport};
+use thrift::framed_transport::{new_thrift_transport};
 use proto::easy::pipeline::connect;
 use futures::Future;
 
@@ -36,12 +36,12 @@ pub fn main() {
     let stream = TcpStream::connect(&addr, &core.handle());
     println!("connected");
     let stream = core.run(stream).expect("failed to connect");
-    let frame = new_thrift_transport::<_, TTransport<bool>, TTransport<Flock_isLoggedIn_Args>>(stream, TTransport::new(), TTransport::new());
+    let frame = new_thrift_transport::<_, bool, Flock_isLoggedIn_Args>(stream);
     let client = connect(frame, &core.handle());
 
     // The connect call returns us a ClientHandle that allows us to use the 'Service' as a function
     // - one that returns a future that we can 'await' on.
-    let resp = client.call(Flock_isLoggedIn_Args{token: "Hello".to_string()});
+    let resp = client.call(Flock_isLoggedIn_Args{token: "123".to_string()});
     let resp = core.run(resp).expect("rpc failed");
     println!("RESPONSE: {:?}", resp);
 }

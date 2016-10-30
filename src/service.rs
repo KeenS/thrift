@@ -43,7 +43,7 @@ pub fn serve<T>(handle: &Handle,  addr: SocketAddr, new_service: T)
         // transport
         let service = FlockServer { inner: try!(new_service.new_service()) };
         Ok(pipeline::EasyServer::new(service,
-                                  new_thrift_transport::<_, TTransport<Flock_isLoggedIn_Args>, TTransport<bool>>(stream, TTransport::new(), TTransport::new())))
+                                  new_thrift_transport::<_, Flock_isLoggedIn_Args, bool>(stream)))
     }));
     Ok(())
 }

@@ -1,13 +1,11 @@
+use std::fmt;
 use std::io::{self, Cursor};
 use tokio_core::io::Io;
 use tokio_core::easy::{Parse, Serialize, EasyBuf, EasyFramed};
-use tokio_proto::pipeline;
-use thrust::protocol::{ThriftDeserializer, ThriftSerializer, Serializer, Deserializer,Deserialize as De, Serialize as Se, Error};
-use thrust::transport::*;
+use thrust::protocol::{Deserialize as De, Serialize as Se, Error};
 use thrust::binary_protocol::BinaryProtocol;
 use futures::{Poll, Async};
 use std::marker::PhantomData;
-use thrift::Flock_isLoggedIn_Args;
 
 pub struct TTransport<T> {
     phantom: PhantomData<T>
@@ -30,46 +28,36 @@ impl <T>TTransport<T> {
 
 //impl <D>Parse for TTransport<D>
 //    where D: Deserializer + ThriftDeserializer + From<ReadTransport>,
-impl Parse for TTransport<Flock_isLoggedIn_Args>
+impl <T>Parse for TTransport<T>
+    where T: De + fmt::Debug
+
 {
-    type Out = Flock_isLoggedIn_Args;
+    type Out = T;
 
     fn parse(&mut self, buf: &mut EasyBuf) -> Poll<Self::Out, io::Error> {
         println!("parsig {:?}", buf.as_ref());
-        let mut protocol = BinaryProtocol::from(Cursor::new(buf));
-        match De::deserialize(&mut protocol) {
+        let cur = Cursor::new(buf);
+        let mut protocol = BinaryProtocol::from(cur);
+        let ret = match De::deserialize(&mut protocol) {
             Ok(res) => Ok(Async::Ready(res)),
             Err(Error::Byteorder(_)) => Ok(Async::NotReady),
             Err(Error::Io(e)) => Err(e),
             _ => Err(io::Error::new(io::ErrorKind::InvalidData, "failed to parse thrift data"))
-        }
+        };
+        let cur = protocol.into_inner();
+        let size = cur.position();
+        let buf = cur.into_inner();
+        buf.drain_to(size as usize);
+        ret
     }
 }
-
-//impl <D>Parse for TTransport<D>
-//    where D: Deserializer + ThriftDeserializer + From<ReadTransport>,
-impl Parse for TTransport<bool>
-{
-    type Out = bool;
-
-    fn parse(&mut self, buf: &mut EasyBuf) -> Poll<Self::Out, io::Error> {
-        println!("parsing {:?}", buf.as_ref());
-        let mut protocol = BinaryProtocol::from(Cursor::new(buf));
-        match De::deserialize(&mut protocol) {
-            Ok(res) => Ok(Async::Ready(res)),
-            Err(Error::Byteorder(_)) => Ok(Async::NotReady),
-            Err(Error::Io(e)) => Err(e),
-            _ => Err(io::Error::new(io::ErrorKind::InvalidData, "failed to parse thrift data"))
-        }
-    }
-}
-
 
 //impl <S>Serialize for TTransport<S>
 //    where S: Serializer + ThriftSerializer + From<WriteTransport>,
-impl Serialize for TTransport<bool>
+impl <T>Serialize for TTransport<T>
+    where T: Se + fmt::Debug
 {
-    type In = bool;
+    type In = T;
 
     fn serialize(&mut self, frame: Self::In, buf: &mut Vec<u8>) {
         println!("serializing {:?}", frame);
@@ -78,29 +66,17 @@ impl Serialize for TTransport<bool>
     }
 }
 
-//impl <S>Serialize for TTransport<S>
-//    where S: Serializer + ThriftSerializer + From<WriteTransport>,
-impl Serialize for TTransport<Flock_isLoggedIn_Args>
-{
-    type In = Flock_isLoggedIn_Args;
 
-    fn serialize(&mut self, frame: Self::In, buf: &mut Vec<u8>) {
-        println!("serializing {:?}", frame.token);
-        let mut protocol = BinaryProtocol::from(buf);
-        let _ = frame.serialize(&mut protocol);
-    }
-}
+pub type FramedThriftTransport<T, D, S> = EasyFramed<T, TTransport<D>, TTransport<S>>;
 
-pub type FramedThriftTransport<T, D, S> = EasyFramed<T, D, S>;
-
-pub fn new_thrift_transport<T, D, S>(inner: T, de: D, se: S) -> FramedThriftTransport<T, D, S>
+pub fn new_thrift_transport<T, D, S>(inner: T) -> FramedThriftTransport<T, D, S>
     where T: Io,
-          D: Parse,
-          S: Serialize,
+          D: De + fmt::Debug,
+          S: Se + fmt::Debug,
           // D: Deserializer + ThriftDeserializer + Parse,
           // S: Serializer + ThriftSerializer + Serialize,
 {
   EasyFramed::new(inner,
-              de,
-              se)
+              TTransport::new(),
+              TTransport::new())
 }
