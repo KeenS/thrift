@@ -16,13 +16,21 @@ use thrift::service::serve;
 struct FlockServer;
 
 impl FlockService for FlockServer {
-    type F = Done<bool, io::Error>;
-    fn isLoggedIn(&self, token: String) -> Self::F {
+    fn isLoggedIn(&self, token: String) -> Box<Future<Item = bool, Error = io::Error>> {
         println!("GOT: {:?}", token);
         if &token == "123" {
-            done(Ok(true))
+            Box::new(done(Ok(true)))
         } else {
-            done(Ok(false))
+            Box::new(done(Ok(false)))
+        }
+    }
+
+    fn isLoggedOut(&self, token: String) -> Box<Future<Item = bool, Error = io::Error>> {
+        println!("GOT: {:?}", token);
+        if &token == "123" {
+            Box::new(done(Ok(false)))
+        } else {
+            Box::new(done(Ok(true)))
         }
     }
 }
@@ -49,7 +57,7 @@ pub fn main() {
     let resp = client.isLoggedIn("123".to_string());
     let resp = core.run(resp).expect("rpc failed");
     println!("RESPONSE: {:?}", resp);
-    let resp = client.isLoggedIn("1234".to_string());
+    let resp = client.isLoggedOut("123".to_string());
     let resp = core.run(resp).expect("rpc failed");
     println!("RESPONSE: {:?}", resp);
 

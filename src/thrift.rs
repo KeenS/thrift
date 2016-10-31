@@ -5,23 +5,130 @@ use thrust::{ThrustResult, ThrustError};
 use std::io;
 use std::thread::JoinHandle;
 use std::net::SocketAddr;
+use std::str::FromStr;
 use std::sync::mpsc::{Sender, Receiver};
 use std::collections::{HashMap, HashSet};
+use thrust::transport::*;
 use thrust::protocol::{ThriftDeserializer, ThriftSerializer, ThriftMessageType};
 use thrust::protocol::{Serializer, Deserializer};
 use thrust::protocol::{Deserialize, Serialize, ThriftMessage};
 use thrust::binary_protocol::BinaryProtocol;
-use futures::Future;
-
+use futures::{Poll, Async, Future};
+use tokio_core::easy::{Parse, EasyBuf};
+use thrust_tokio::framed_transport::*;
 
 pub trait FlockService: Send {
-    type F: Future<Item = bool, Error = io::Error>;
-    fn isLoggedIn(&self, token: String) -> Self::F;
+    fn isLoggedIn(&self, token: String) -> Box<Future<Item = bool, Error = io::Error>>;
+    fn isLoggedOut(&self, token: String) -> Box<Future<Item = bool, Error = io::Error>>;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FlockServiceMethods {
+    MisLoggedIn,
+    MisLoggedOut,
 }
 
 
-#[derive(Debug)]
+impl FromStr for FlockServiceMethods {
+    type Err = io::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use self::FlockServiceMethods::*;
+        match s {
+            "isLoggedIn" => Ok(MisLoggedIn),
+            "isLoggedOut" => Ok(MisLoggedOut),
+            _ => Err(io::Error::new(io::ErrorKind::InvalidData, "failed to parse thrift data"))
+        }
+    }
+}
+
+impl ParseThrift for FlockServiceMethods {
+    type Args = FlockServiceMethodArgs;
+    type Ret = FlockServiceMethodReturn;
+    fn parse_args<D: Deserializer + ThriftDeserializer>(&self, proto: &mut D) -> Result<Self::Args, Error> {
+        use self::FlockServiceMethodArgs::*;
+        use self::FlockServiceMethods::*;
+        match self {
+            &MisLoggedIn => Flock_isLoggedIn_Args::deserialize(proto).map(AisLoggedIn),
+            &MisLoggedOut => Flock_isLoggedOut_Args::deserialize(proto).map(AisLoggedOut),
+        }
+    }
+
+    fn parse_ret<D: Deserializer + ThriftDeserializer>(&self, proto: &mut D) -> Result<Self::Ret, Error> {
+        use self::FlockServiceMethodReturn::*;
+        use self::FlockServiceMethods::*;
+        match self {
+            &MisLoggedIn => bool::deserialize(proto).map(RisLoggedIn),
+            &MisLoggedOut => bool::deserialize(proto).map(RisLoggedOut),
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FlockServiceMethodArgs {
+    AisLoggedIn(Flock_isLoggedIn_Args),
+    AisLoggedOut(Flock_isLoggedOut_Args),
+}
+
+impl Serialize for FlockServiceMethodArgs {
+    fn serialize<S>(&self, s: &mut S) -> Result<(), Error>
+        where S: Serializer + ThriftSerializer
+    {
+        println!("FlockServiceMethodArgs");
+        use self::FlockServiceMethodArgs::*;
+        match self {
+            &AisLoggedIn(ref b) => {
+                try!(s.write_message_begin("isLoggedIn", ThriftMessageType::Call));
+                try!(b.serialize(s));
+                try!(s.write_message_end());
+            },
+            &AisLoggedOut(ref b) => {
+                try!(s.write_message_begin("isLoggedOut", ThriftMessageType::Call));
+                try!(b.serialize(s));
+                try!(s.write_message_end());
+            },
+        };
+        Ok(())
+    }
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FlockServiceMethodReturn {
+    RisLoggedIn(bool),
+    RisLoggedOut(bool),
+}
+
+
+impl Serialize for FlockServiceMethodReturn {
+    fn serialize<S>(&self, s: &mut S) -> Result<(), Error>
+        where S: Serializer + ThriftSerializer
+    {
+        println!("FlockServiceMethodReturn");
+        use self::FlockServiceMethodReturn::*;
+        match self {
+            &RisLoggedIn(ref b) => {
+                try!(s.write_message_begin("isLoggedIn", ThriftMessageType::Reply));
+                try!(b.serialize(s));
+                try!(s.write_message_end());
+            },
+            &RisLoggedOut(ref b) => {
+                try!(s.write_message_begin("isLoggedOut", ThriftMessageType::Reply));
+                try!(b.serialize(s));
+                try!(s.write_message_end());
+            },
+        };
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Flock_isLoggedIn_Args {
+    pub token: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Flock_isLoggedOut_Args {
     pub token: String,
 }
 
@@ -38,6 +145,21 @@ impl Serialize for Flock_isLoggedIn_Args {
         Ok(())
     }
 }
+
+impl Serialize for Flock_isLoggedOut_Args {
+    fn serialize<S>(&self, s: &mut S) -> Result<(), Error>
+        where S: Serializer + ThriftSerializer
+    {
+        try!(s.write_struct_begin("Flock_isLoggedOut_Args"));
+        try!(s.write_field_begin("token", ThriftType::String, 1));
+        try!(self.token.serialize(s));
+        try!(s.write_field_stop());
+        try!(s.write_field_end());
+        try!(s.write_struct_end());
+        Ok(())
+    }
+}
+
 impl Deserialize for Flock_isLoggedIn_Args {
     fn deserialize<D>(de: &mut D) -> Result<Self, Error>
         where D: Deserializer + ThriftDeserializer
@@ -60,69 +182,26 @@ impl Deserialize for Flock_isLoggedIn_Args {
         Ok(args)
     }
 }
-// impl FlockService for FlockClient {
-//     fn isLoggedIn(&mut self, token: String) -> Future<bool> {
-//         use std::io::Cursor;
-//         let (res, future) =
-//             Future::<(ThriftMessage, BinaryDeserializer<Cursor<Vec<u8>>>)>::channel();
-//         let mut buf = Vec::new();
-//         {
-//             let mut se = BinarySerializer::new(&mut buf);
-//             se.write_message_begin("isLoggedIn", ThriftMessageType::Call);
-//             let args = Flock_isLoggedIn_Args { token: token };
-//             args.serialize(&mut se);
-//             se.write_message_end();
-//         }
-//         self.dispatcher.send(Incoming::Call("isLoggedIn".to_string(), buf, Some(res))).unwrap();
-//         future.and_then(move |(msg, de)| Async::Ok("foobar".to_string()))
-//     }
-// }
 
-
-// pub struct FlockServer {
-//     dispatcher: Sender<dispatcher::Incoming>,
-//     pub handle: JoinHandle<ThrustResult<()>>,
-// }
-
-// impl FlockServer {
-//     pub fn new<S>(service: S, addr: SocketAddr) -> FlockServer
-//         where S: 'static + FlockService
-//     {
-//         use std::thread;
-//         use std::sync::mpsc::channel;
-//         use std::io::Cursor;
-
-//         let (sender, receiver) = channel();
-//         let (handle, tx) = Dispatcher::spawn(dispatcher::Role::Server(addr, sender)).unwrap();
-
-//         let send_tx = tx.clone();
-//         thread::spawn(move || {
-//             let mut runner = FlockRunner::new(service);
-//             for (token, buf) in receiver.iter() {
-//                 let mut de = BinaryDeserializer::new(Cursor::new(buf));
-//                 match de.read_message_begin() {
-//                     Ok(msg) => {
-//                         match runner.run(&mut de, msg) {
-//                             Ok(f) => {
-//                                 let chan = send_tx.clone();
-//                                 f.and_then(move |buf| {
-//                                     chan.send(Incoming::Reply(token, buf));
-//                                     Async::Ok(())
-//                                 });
-//                             }
-//                             Err(err) => {}
-//                         }
-//                     }
-//                     Err(err) => {
-//                         println!("[server]: error parsing thrift message: {:?}", err);
-//                     }
-//                 }
-//             }
-//         });
-
-//         FlockServer {
-//             dispatcher: tx,
-//             handle: handle,
-//         }
-//     }
-// }
+impl Deserialize for Flock_isLoggedOut_Args {
+    fn deserialize<D>(de: &mut D) -> Result<Self, Error>
+        where D: Deserializer + ThriftDeserializer
+    {
+        try!(de.read_struct_begin());
+        let args = Flock_isLoggedOut_Args {
+            token: {
+                match try!(de.read_field_begin()).ty {
+                    ThriftType::Stop => {
+                        try!(de.read_field_begin());
+                    }
+                    _ => {}
+                }
+                let val = try!(de.deserialize_str());
+                try!(de.read_field_end());
+                val
+            },
+        };
+        try!(de.read_struct_end());
+        Ok(args)
+    }
+}
