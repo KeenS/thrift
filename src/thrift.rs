@@ -74,7 +74,6 @@ impl Serialize for FlockServiceMethodArgs {
     fn serialize<S>(&self, s: &mut S) -> Result<(), Error>
         where S: Serializer + ThriftSerializer
     {
-        println!("FlockServiceMethodArgs");
         use self::FlockServiceMethodArgs::*;
         match self {
             &AisLoggedIn(ref b) => {
@@ -104,7 +103,6 @@ impl Serialize for FlockServiceMethodReturn {
     fn serialize<S>(&self, s: &mut S) -> Result<(), Error>
         where S: Serializer + ThriftSerializer
     {
-        println!("FlockServiceMethodReturn");
         use self::FlockServiceMethodReturn::*;
         match self {
             &RisLoggedIn(ref b) => {
@@ -174,6 +172,7 @@ impl Deserialize for Flock_isLoggedIn_Args {
                     _ => {}
                 }
                 let val = try!(de.deserialize_str());
+                try!(de.read_field_begin()); // assert ty == Stop
                 try!(de.read_field_end());
                 val
             },
@@ -197,6 +196,7 @@ impl Deserialize for Flock_isLoggedOut_Args {
                     _ => {}
                 }
                 let val = try!(de.deserialize_str());
+                try!(de.read_field_begin()); // assert ty == Stop
                 try!(de.read_field_end());
                 val
             },
