@@ -7,8 +7,7 @@ authors = ["Sunrin SHIMURA (keen) <3han5chou7@gmail.com>"]
 thrust = { path = "../thrust"}
 thrust-tokio = { path = "../thrust/thrust-tokio"}
 futures = "0.1.3"
-tokio-core = { path = "../tokio-core" }
-tokio-proto = { path = "../tokio-proto" }
-tokio-service = { path = "../tokio-service" }
-bytes = {path = "../bytes"}
+tokio-core = "0.1"
+tokio-proto = { git = "https://github.com/tokio-rs/tokio-proto" }
+tokio-service = { git = "https://github.com/tokio-rs/tokio-service" }
 byteorder = "0.4"

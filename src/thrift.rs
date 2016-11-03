@@ -227,9 +227,9 @@ pub struct FlockClient {
 }
 
 impl FlockClient {
-    pub fn new(handle:&Handle, stream: TcpStream) -> Self {
+    pub fn new(handle: &Handle, stream: TcpStream) -> Self {
         let transport = new_thrift_client_transport::<_, FlockServiceMethods, FlockServiceMethodArgs>(stream);
-        let easy_client = easy::pipeline::connect(transport, &handle);
+        let easy_client = easy::pipeline::connect(transport, handle);
 
         FlockClient { inner: easy_client }
     }

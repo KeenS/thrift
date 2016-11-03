@@ -48,8 +48,7 @@ pub fn main() {
     let stream = core.run(TcpStream::connect(&addr, &handle.clone())).expect("connection failed");
     let client = FlockClient::new(&handle.clone(), stream);
 
-    // The connect call returns us a ClientHandle that allows us to use the 'Service' as a function
-    // - one that returns a future that we can 'await' on.
+
     let resp = client.isLoggedIn("123".to_string());
     let resp = core.run(resp).expect("rpc failed");
     println!("RESPONSE: {:?}", resp);

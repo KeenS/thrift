@@ -2,8 +2,6 @@
 extern crate thrust;
 extern crate thrust_tokio;
 extern crate futures;
-extern crate bytes;
-extern crate byteorder;
 extern crate tokio_proto;
 extern crate tokio_core;
 extern crate tokio_service;
