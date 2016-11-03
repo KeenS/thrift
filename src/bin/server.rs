@@ -9,8 +9,6 @@ use futures::{Future, done};
 use tokio::reactor::Core;
 use tokio::net::TcpStream;
 use thrift::thrift::*;
-use thrift::client::FlockClient;
-use thrift::service::FlockServer;
 
 #[derive(Clone)]
 struct FlockServerImpl;

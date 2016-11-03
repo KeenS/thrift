@@ -9,6 +9,3 @@ extern crate tokio_core;
 extern crate tokio_service;
 
 pub mod thrift;
-pub mod service;
-pub mod client;
-pub use thrift::FlockService;
