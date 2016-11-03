@@ -5,17 +5,17 @@ extern crate tokio_proto as proto;
 extern crate thrift;
 
 use std::io;
-use futures::{Future, done, Done};
+use futures::{Future, done};
 use tokio::reactor::Core;
 use tokio::net::TcpStream;
 use thrift::thrift::*;
 use thrift::client::FlockClient;
-use thrift::service::serve;
+use thrift::service::FlockServer;
 
 #[derive(Clone)]
-struct FlockServer;
+struct FlockServerImpl;
 
-impl FlockService for FlockServer {
+impl FlockService for FlockServerImpl {
     fn isLoggedIn(&self, token: String) -> Box<Future<Item = bool, Error = io::Error>> {
         println!("GOT: {:?}", token);
         if &token == "123" {
@@ -41,10 +41,8 @@ pub fn main() {
     // This brings up our server.
     let addr = "127.0.0.1:12345".parse().unwrap();
 
-    serve(
-        core.handle(),
-        addr,
-        FlockServer).unwrap();
+    let server = FlockServer::new(FlockServerImpl);
+    server.serve(&core.handle(), addr,).unwrap();
 
     // Now our client. We use the same reactor as for the server - usually though this would be
     // done in a separate program most likely on a separate machine.

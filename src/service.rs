@@ -1,6 +1,6 @@
 use tokio_proto::server;
 use tokio_proto::easy::pipeline;
-use tokio_service::{Service, simple_service};
+use tokio_service::{Service};
 use tokio_core::reactor::Handle;
 use futures::{Async, Future};
 use std::io;
@@ -8,19 +8,31 @@ use std::net::SocketAddr;
 use thrust_tokio::framed_transport::*;
 use thrift::*;
 
-struct FlockServer<T>
+#[derive(Clone)]
+pub struct FlockServer<T>
 {
     inner: T,
 }
 
 impl <T: FlockService>FlockServer<T>
 {
-    fn new(inner: T) -> Self
+    pub fn new(inner: T) -> Self
     {
         FlockServer {
             inner: inner
         }
     }
+
+    pub fn serve(self, handle: &Handle,  addr: SocketAddr)
+                    -> io::Result<server::ServerHandle>
+        where T: FlockService+Clone+'static
+    {
+        server::listen(handle, addr, move |stream| {
+            Ok(pipeline::EasyServer::new(self.clone(),
+                                         new_thrift_server_transport::<_, FlockServiceMethods, FlockServiceMethodReturn>(stream)))
+        })
+    }
+
 }
 
 impl <T>Service for FlockServer<T>
@@ -44,15 +56,4 @@ impl <T>Service for FlockServer<T>
     fn poll_ready(&self) -> Async<()> {
         Async::Ready(())
     }
-}
-
-pub fn serve<T>(handle: Handle,  addr: SocketAddr, flock_service: T)
-                -> io::Result<server::ServerHandle>
-    where T: FlockService+Clone+'static
-{
-    server::listen(&handle, addr, move |stream| {
-        let service = FlockServer { inner: flock_service.clone() };
-        Ok(pipeline::EasyServer::new(service,
-                                  new_thrift_server_transport::<_, FlockServiceMethods, FlockServiceMethodReturn>(stream)))
-    })
 }
